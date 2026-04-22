@@ -9,14 +9,15 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Gamepad2, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
-  const { login, user } = useAuth()
+  const { login, user, hydrated } = useAuth()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  if (user) {
+  // Already logged in — redirect after session is restored
+  if (hydrated && user) {
     router.replace('/catalog')
     return null
   }

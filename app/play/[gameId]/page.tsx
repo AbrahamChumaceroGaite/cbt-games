@@ -51,7 +51,7 @@ interface SaveModalState {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function PlayPage() {
-  const { user } = useAuth()
+  const { user, hydrated } = useAuth()
   const router = useRouter()
   const { gameId } = useParams<{ gameId: string }>()
 
@@ -67,6 +67,7 @@ export default function PlayPage() {
   const [savedSlot, setSavedSlot]         = useState<number | null>(null)   // success flash
 
   useEffect(() => {
+    if (!hydrated) return
     if (!user) { router.replace('/'); return }
     async function load() {
       setLoadingPage(true)
@@ -80,7 +81,7 @@ export default function PlayPage() {
       setLoadingPage(false)
     }
     load()
-  }, [user, gameId, router])
+  }, [hydrated, user, gameId, router])
 
   // ── Open save modal ──────────────────────────────────────────────────────
   function openSaveModal(slot: number) {

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Gamepad2, LogOut, Search, Loader2 } from 'lucide-react'
 
 export default function CatalogPage() {
-  const { user, logout } = useAuth()
+  const { user, hydrated, logout } = useAuth()
   const router = useRouter()
 
   const [games, setGames] = useState<GameEntity[]>([])
@@ -22,7 +22,7 @@ export default function CatalogPage() {
   const [platform, setPlatform] = useState<Platform | 'all'>('all')
 
   useEffect(() => {
-    if (!user) router.replace('/')
+    if (hydrated && !user) router.replace('/')
   }, [user, router])
 
   const fetchGames = useCallback(async () => {
@@ -45,6 +45,13 @@ export default function CatalogPage() {
     logout()
     router.push('/')
   }
+
+  // Wait for localStorage hydration before deciding to redirect
+  if (!hydrated) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="h-7 w-7 animate-spin text-violet-400" />
+    </div>
+  )
 
   if (!user) return null
 
