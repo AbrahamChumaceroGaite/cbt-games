@@ -51,8 +51,28 @@ body {
   font-family: var(--font-sans, system-ui, sans-serif);
 }
 
-/* js-dos injects its own UI — keep it contained */
-.jsdos-container > * { max-width: 100% !important; }
+/* ── js-dos v8 containment ─────────────────────────────────────────────────
+   js-dos v8 injects a full React app into the container. Force it to fill
+   exactly the container bounds and hide its cloud/guest overlay. */
+.jsdos-container {
+  position: relative;
+  overflow: hidden;
+}
+.jsdos-container > div,
+.jsdos-container > div > div {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+.jsdos-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+}
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #1e2130; }

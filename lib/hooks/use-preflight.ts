@@ -8,6 +8,18 @@ export interface FileCheck {
   hint?: string
 }
 
+/** Fetch a CUE file and return the FILE reference inside it */
+export async function parseCueBinFilename(cueUrl: string): Promise<string | null> {
+  try {
+    const res  = await fetch(cueUrl)
+    const text = await res.text()
+    const m    = text.match(/FILE\s+"([^"]+)"/i)
+    return m ? m[1] : null
+  } catch {
+    return null
+  }
+}
+
 export async function checkFiles(files: Omit<FileCheck, 'status'>[]): Promise<FileCheck[]> {
   return Promise.all(
     files.map(async f => {
