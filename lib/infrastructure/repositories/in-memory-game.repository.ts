@@ -9,6 +9,7 @@ const GAMES: GameEntity[] = [
     genre: 'FPS',
     coverUrl: 'https://upload.wikimedia.org/wikipedia/en/5/57/Doom_%281993%29_gameplay.png',
     romUrl: '/roms/doom.jsdos',
+    // Bundle: ZIP con DOOM.EXE + DOOM.WAD + dosbox.conf → renombrar a doom.jsdos
     description: 'El FPS que definió un género. Combate demoníaco en Marte.',
     year: 1993,
     publisher: 'id Software',
@@ -23,6 +24,20 @@ const GAMES: GameEntity[] = [
     description: 'Aventura clásica de plataformas con animaciones revolucionarias.',
     year: 1989,
     publisher: 'Broderbund',
+  },
+  {
+    id: 'resident-evil',
+    title: 'Resident Evil',
+    platform: 'ps1',
+    genre: 'Survival Horror',
+    coverUrl: 'https://upload.wikimedia.org/wikipedia/en/3/33/Resident_Evil_-_PS1_cover.png',
+    // Archivo: volcado de tu propio disco PS1 → coloca en /public/roms/resident-evil.bin
+    // CUE sheet (opcional): /public/roms/resident-evil.cue
+    romUrl: '/roms/resident-evil.bin',
+    biosUrl: '/bios/scph1001.bin',
+    description: 'La mansión Spencer, zombis y puzzles que definieron el survival horror.',
+    year: 1996,
+    publisher: 'Capcom',
   },
   {
     id: 'crash-bandicoot',
