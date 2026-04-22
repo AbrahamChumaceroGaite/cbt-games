@@ -16,14 +16,10 @@ import { Badge } from '@/components/ui/badge'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
 import {
   ArrowLeft, Save, Loader2, HardDrive,
-  CheckCircle2, Trash2, Keyboard, Maximize2,
-  Menu as MenuIcon, Info,
+  CheckCircle2, Trash2, Keyboard, Maximize2, Info,
 } from 'lucide-react'
 
-const DosEmulator = dynamic(
-  () => import('@/components/emulator/dos-emulator').then(m => ({ default: m.DosEmulator })),
-  { ssr: false, loading: () => <EmulatorSkeleton /> },
-)
+// Single player component for all platforms — DOS uses dosbox core, others use their own
 const EmulatorJSPlayer = dynamic(
   () =>
     import('@/components/emulator/emulatorjs-player').then(m => ({ default: m.EmulatorJSPlayer })),
@@ -168,18 +164,14 @@ export default function PlayPage() {
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-5">
         <div className="flex flex-col xl:flex-row gap-5">
 
-          {/* ── Emulator ── */}
+          {/* ── Emulator — all platforms via EmulatorJS ── */}
           <div className="flex-1 min-w-0">
-            {game.platform === 'dos' ? (
-              <DosEmulator romUrl={game.romUrl} title={game.title} />
-            ) : (
-              <EmulatorJSPlayer
-                platform={game.platform as 'ps1' | 'snes' | 'gba'}
-                romUrl={game.romUrl}
-                biosUrl={game.biosUrl}
-                title={game.title}
-              />
-            )}
+            <EmulatorJSPlayer
+              platform={game.platform}
+              romUrl={game.romUrl}
+              biosUrl={game.biosUrl}
+              title={game.title}
+            />
           </div>
 
           {/* ── Sidebar ── */}

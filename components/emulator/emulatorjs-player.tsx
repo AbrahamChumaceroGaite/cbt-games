@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2, AlertCircle, Gamepad2, CheckCircle2, XCircle, FileQuestion } from 'lucide-react'
 import { Platform } from '@/lib/domain/entities/game.entity'
-import { checkFiles, parseCueBinFilename, type FileCheck } from '@/lib/hooks/use-preflight'
+import { checkFiles, parseCueBinFilename, buildFileUrl, type FileCheck } from '@/lib/hooks/use-preflight'
 
-const PLATFORM_CORE: Record<Exclude<Platform, 'dos'>, string> = {
+// dos uses dosbox core — same interface as all other platforms, no separate js-dos needed
+const PLATFORM_CORE: Record<Platform, string> = {
+  dos:  'dosbox',
   ps1:  'pcsx_rearmed',   // HLE BIOS built-in, accepts .bin or .cue
   snes: 'snes9x',
   gba:  'mgba',
@@ -14,7 +16,8 @@ const PLATFORM_CORE: Record<Exclude<Platform, 'dos'>, string> = {
 
 const EJS_CDN = 'https://cdn.emulatorjs.org/stable/data/'
 
-const LOAD_TIMEOUT_MS: Record<Exclude<Platform, 'dos'>, number> = {
+const LOAD_TIMEOUT_MS: Record<Platform, number> = {
+  dos:  45_000,
   ps1:  90_000,
   snes: 45_000,
   gba:  45_000,
@@ -23,7 +26,7 @@ const LOAD_TIMEOUT_MS: Record<Exclude<Platform, 'dos'>, number> = {
 type Status = 'idle' | 'checking' | 'preflight-error' | 'loading' | 'running' | 'error'
 
 interface EmulatorJSPlayerProps {
-  platform: Exclude<Platform, 'dos'>
+  platform: Platform
   romUrl: string
   biosUrl?: string
   title: string
@@ -79,7 +82,8 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
       addLog('Leyendo archivo .cue para encontrar el .bin referenciado…')
       const binFilename = await parseCueBinFilename(romUrl)
       if (binFilename) {
-        const binUrl = `${dir}${binFilename}`
+        // buildFileUrl encodes spaces/brackets so fetch() resolves correctly
+        const binUrl = buildFileUrl(dir, binFilename)
         addLog(`CUE referencia: "${binFilename}" → verificando ${binUrl}`)
         filesToCheck.push({
           url: binUrl,
@@ -142,9 +146,13 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
     }
 
     const w = window as unknown as Record<string, unknown>
+    // For CUE+BIN: pass the encoded BIN URL directly so EmulatorJS fetches the right filename
+    const binCheck = results.find(r => r.label.startsWith('BIN referenciado'))
+    const actualRomUrl = binCheck?.status === 'ok' ? binCheck.url : romUrl
+
     w['EJS_player']      = '#ejs-player'
     w['EJS_core']        = PLATFORM_CORE[platform]
-    w['EJS_gameUrl']     = romUrl
+    w['EJS_gameUrl']     = actualRomUrl
     w['EJS_pathToData']  = EJS_CDN
     w['EJS_color']       = '#7c3aed'
     w['EJS_startOnLoad'] = true
@@ -210,13 +218,17 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
                   <p className="text-white font-semibold text-lg">{title}</p>
                   <p className="text-slate-500 text-sm">{platformLabel} · {PLATFORM_CORE[platform]}</p>
                 </div>
-                {biosUrl && (
-                  <div className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-xs space-y-1">
-                    <p className="font-semibold text-slate-300">Archivos esperados</p>
-                    <p>📀 <code className="text-violet-400">/public{romUrl}</code></p>
-                    <p>🔧 <code className="text-slate-400">/public{biosUrl}</code> <span className="text-slate-600">(opcional)</span></p>
-                  </div>
-                )}
+                <div className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-xs space-y-1.5">
+                  <p className="font-semibold text-slate-300">Archivos esperados</p>
+                  <p>📀 <code className="text-violet-400 break-all">/public{romUrl}</code></p>
+                  {biosUrl && <p>🔧 <code className="text-slate-400 break-all">/public{biosUrl}</code> <span className="text-slate-600">(opcional)</span></p>}
+                  {platform === 'dos' && (
+                    <div className="border-t border-slate-700 pt-1.5 mt-1.5">
+                      <p className="text-slate-500">El <code>.jsdos</code> es un ZIP con los archivos del juego + <code>dosbox.conf</code>:</p>
+                      <pre className="text-slate-400 bg-slate-800 rounded p-1.5 mt-1 leading-5 text-xs select-all">{`[autoexec]\nmount c .\nc:\ncd doom\nDOOM.EXE`}</pre>
+                    </div>
+                  )}
+                </div>
                 <Button onClick={launch} sz="lg" className="px-8">▶ Iniciar {platformLabel}</Button>
               </>
             )}
