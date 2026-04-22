@@ -75,24 +75,29 @@ export function DosEmulator({ romUrl, title }: DosEmulatorProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="relative">
+        {/* jsdos-container class lets globals.css constrain js-dos injected UI */}
         <div
           ref={containerRef}
-          className="w-full bg-black rounded-lg overflow-hidden"
+          className="jsdos-container w-full bg-black rounded-lg overflow-hidden"
           style={{ minHeight: 400, aspectRatio: '4/3' }}
         />
 
         {/* Overlay — shown when not running */}
         {status !== 'running' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/85 rounded-lg">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-black/90 rounded-lg p-6">
             {status === 'idle' && (
               <>
-                <Terminal className="h-12 w-12 text-violet-400 opacity-60" />
-                <p className="text-slate-300 text-sm">Listo para iniciar <span className="font-semibold text-white">{title}</span></p>
-                <p className="text-slate-500 text-xs max-w-xs text-center">
-                  Requiere un bundle <code className="text-violet-400">.jsdos</code> en{' '}
-                  <code className="text-slate-400">/public{romUrl}</code>
-                </p>
-                <Button onClick={launch} sz="lg">
+                <Terminal className="h-14 w-14 text-violet-500 opacity-50" />
+                <div className="text-center space-y-1">
+                  <p className="text-white font-semibold text-lg">{title}</p>
+                  <p className="text-slate-400 text-sm">MS-DOS · js-dos / DOSBox</p>
+                </div>
+                <div className="rounded-lg border border-slate-700 bg-slate-900/80 px-4 py-3 text-xs text-slate-400 max-w-sm w-full space-y-1">
+                  <p className="font-semibold text-slate-300">Bundle requerido:</p>
+                  <p><code className="text-violet-400">/public{romUrl}</code></p>
+                  <p className="text-slate-600 mt-1">Si los archivos están en una subcarpeta dentro del ZIP, el <code>dosbox.conf</code> debe hacer <code>cd doom</code> antes de ejecutar <code>DOOM.EXE</code></p>
+                </div>
+                <Button onClick={launch} sz="lg" className="px-8">
                   ▶ Iniciar DOSBox
                 </Button>
               </>

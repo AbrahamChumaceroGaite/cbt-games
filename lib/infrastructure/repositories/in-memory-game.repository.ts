@@ -31,10 +31,10 @@ const GAMES: GameEntity[] = [
     platform: 'ps1',
     genre: 'Survival Horror',
     coverUrl: 'https://upload.wikimedia.org/wikipedia/en/3/33/Resident_Evil_-_PS1_cover.png',
-    // Archivo: volcado de tu propio disco PS1 → coloca en /public/roms/resident-evil.bin
-    // CUE sheet (opcional): /public/roms/resident-evil.cue
-    romUrl: '/roms/resident-evil.bin',
-    biosUrl: '/bios/scph1001.bin',
+    // core pcsx_rearmed tiene HLE BIOS integrada; si tienes SCPH1001.BIN úsala para mejor compatibilidad
+    // usa .cue como entrada principal para que el emulador resuelva bien el .bin multípista
+    romUrl: '/roms/resident-evil.cue',
+    biosUrl: '/bios/SCPH1001.BIN',
     description: 'La mansión Spencer, zombis y puzzles que definieron el survival horror.',
     year: 1996,
     publisher: 'Capcom',
@@ -45,8 +45,8 @@ const GAMES: GameEntity[] = [
     platform: 'ps1',
     genre: 'Platformer',
     coverUrl: 'https://upload.wikimedia.org/wikipedia/en/e/e2/Crash_Bandicoot_Cover.png',
-    romUrl: '/roms/crash.bin',
-    biosUrl: '/bios/scph1001.bin',
+    romUrl: '/roms/crash.cue',
+    biosUrl: '/bios/SCPH1001.BIN',
     description: 'El marsupial más famoso de PS1 en su aventura original.',
     year: 1996,
     publisher: 'Naughty Dog / Sony',
@@ -57,8 +57,8 @@ const GAMES: GameEntity[] = [
     platform: 'ps1',
     genre: 'RPG',
     coverUrl: 'https://upload.wikimedia.org/wikipedia/en/c/ce/Ffvii_boxart.jpg',
-    romUrl: '/roms/ff7.bin',
-    biosUrl: '/bios/scph1001.bin',
+    romUrl: '/roms/ff7.cue',
+    biosUrl: '/bios/SCPH1001.BIN',
     description: 'El RPG épico de Cloud Strife y la lucha contra Shinra.',
     year: 1997,
     publisher: 'Square',
