@@ -118,17 +118,25 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
     const actualRom = binCheck?.status === 'ok' ? binCheck.url : romUrl
     const biosCheck = results.find(r => r.url === biosUrl)
 
-    // Variable names are taken directly from EmulatorJS loader.js source.
-    // EJS_pathtodata is ALL lowercase — the camelCase version is silently ignored.
-    // EJS_startOnLoaded (with "ed") — EJS_startOnLoad does not exist.
-    // EJS_onLoadError does not exist in EmulatorJS — removed.
+    // Variable names from EmulatorJS loader.js source (verified).
+    // EJS_pathtodata: ALL lowercase — camelCase silently ignored.
+    // EJS_startOnLoaded: "Loaded" suffix — EJS_startOnLoad does not exist.
     w['EJS_player']          = '#ejs-player'
     w['EJS_core']            = PLATFORM_CORE[platform]
     w['EJS_gameUrl']         = actualRom
-    w['EJS_pathtodata']      = EJS_DATA_PATH   // lowercase "todata" — critical
+    w['EJS_pathtodata']      = EJS_DATA_PATH
     w['EJS_color']           = '#7c3aed'
-    w['EJS_startOnLoaded']   = true            // "Loaded" not "Load"
-    w['EJS_language']        = 'en-EN'         // avoid es-BO 404 (not in localization files)
+    w['EJS_startOnLoaded']   = true
+    w['EJS_threads']         = true   // required by dosbox_pure; also enables thread variants for other cores
+    w['EJS_language']        = 'en-US' // en-US.json exists in the npm package; en-EN does not
+
+    // Redirect emulator.min.* to non-minified versions (npm package has source only)
+    w['EJS_paths'] = {
+      'emulator.min.js':  `${EJS_DATA_PATH}src/emulator.js`,
+      'emulator.min.css': `${EJS_DATA_PATH}emulator.css`,
+    }
+
+    log(`EJS_threads=true | crossOriginIsolated=${window.crossOriginIsolated}`, 'info')
 
     if (biosUrl && biosCheck?.status === 'ok') {
       w['EJS_biosUrl'] = biosUrl
