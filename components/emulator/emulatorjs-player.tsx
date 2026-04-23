@@ -117,12 +117,16 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
     const actualRom = binCheck?.status === 'ok' ? binCheck.url : romUrl
     const biosCheck = results.find(r => r.url === biosUrl)
 
-    w['EJS_player']      = '#ejs-player'
-    w['EJS_core']        = PLATFORM_CORE[platform]
-    w['EJS_gameUrl']     = actualRom
-    w['EJS_pathToData']  = EJS_CDN
-    w['EJS_color']       = '#7c3aed'
-    w['EJS_startOnLoad'] = true
+    // Variable names are taken directly from EmulatorJS loader.js source.
+    // EJS_pathtodata is ALL lowercase — the camelCase version is silently ignored.
+    // EJS_startOnLoaded (with "ed") — EJS_startOnLoad does not exist.
+    // EJS_onLoadError does not exist in EmulatorJS — removed.
+    w['EJS_player']        = '#ejs-player'
+    w['EJS_core']          = PLATFORM_CORE[platform]
+    w['EJS_gameUrl']       = actualRom
+    w['EJS_pathtodata']    = EJS_CDN   // lowercase "todata" — critical
+    w['EJS_color']         = '#7c3aed'
+    w['EJS_startOnLoaded'] = true      // "Loaded" not "Load"
 
     if (biosUrl && biosCheck?.status === 'ok') {
       w['EJS_biosUrl'] = biosUrl
@@ -141,13 +145,7 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
       observerRef.current.observe(playerEl, { childList: true, subtree: true, attributes: true })
     }
 
-    w['EJS_onGameStart'] = () => markRunning()
-    w['EJS_onLoadError'] = (msg: unknown) => {
-      const text = typeof msg === 'string' ? msg : 'Error interno de EmulatorJS'
-      log(`❌ EJS_onLoadError: ${text}`, 'err')
-      setError(text)
-      setStatus('error')
-    }
+    w['EJS_onGameStart'] = () => { log('EJS_onGameStart fired', 'ok'); markRunning() }
 
     // ── Step 4: inject loader — overlay drops so EJS UI becomes visible ──
     log(`Descargando loader.js desde CDN…`)
