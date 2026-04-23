@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, AlertCircle, Gamepad2, CheckCircle2, XCircle, FileQuestion } from 'lucide-react'
+import {
+  Loader2, AlertCircle, Gamepad2,
+  CheckCircle2, XCircle, FileQuestion, ChevronDown, ChevronUp,
+} from 'lucide-react'
 import { Platform } from '@/lib/domain/entities/game.entity'
 import { checkFiles, parseCueBinFilename, buildFileUrl, type FileCheck } from '@/lib/hooks/use-preflight'
 
@@ -15,7 +18,9 @@ const PLATFORM_CORE: Record<Platform, string> = {
 
 const EJS_CDN = 'https://cdn.emulatorjs.org/stable/data/'
 
-type Status = 'idle' | 'checking' | 'preflight-error' | 'launched' | 'error'
+type Status = 'idle' | 'checking' | 'preflight-error' | 'launching' | 'running' | 'error'
+
+interface LogLine { time: string; text: string; kind: 'ok' | 'warn' | 'err' | 'info' }
 
 interface EmulatorJSPlayerProps {
   platform: Platform
@@ -25,60 +30,92 @@ interface EmulatorJSPlayerProps {
 }
 
 export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJSPlayerProps) {
-  const scriptRef = useRef<HTMLScriptElement | null>(null)
+  const scriptRef   = useRef<HTMLScriptElement | null>(null)
+  const observerRef = useRef<MutationObserver | null>(null)
 
-  const [status,  setStatus]  = useState<Status>('idle')
-  const [error,   setError]   = useState<string | null>(null)
-  const [checks,  setChecks]  = useState<FileCheck[]>([])
+  const [status,   setStatus]   = useState<Status>('idle')
+  const [error,    setError]    = useState<string | null>(null)
+  const [checks,   setChecks]   = useState<FileCheck[]>([])
+  const [logs,     setLogs]     = useState<LogLine[]>([])
+  const [showLog,  setShowLog]  = useState(false)
+
+  function log(text: string, kind: LogLine['kind'] = 'info') {
+    setLogs(prev =>
+      [{ time: new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), text, kind }, ...prev].slice(0, 80)
+    )
+    console.log('[EJS]', text)
+  }
+
+  function markRunning() {
+    observerRef.current?.disconnect()
+    log('✅ Emulador activo', 'ok')
+    setStatus('running')
+  }
 
   async function launch() {
+    // Clean up any previous run
+    observerRef.current?.disconnect()
+    if (scriptRef.current && document.body.contains(scriptRef.current))
+      document.body.removeChild(scriptRef.current)
+
     setStatus('checking')
     setError(null)
+    setLogs([])
+    setShowLog(true)
+    log(`Iniciando "${title}" (${platform.toUpperCase()})…`)
 
-    // ── Preflight ─────────────────────────────────────────────────────────
-    const dir    = romUrl.substring(0, romUrl.lastIndexOf('/') + 1)
-    const isCue  = romUrl.endsWith('.cue')
+    // ── Step 1: preflight ─────────────────────────────────────────────────
+    log('Verificando archivos requeridos…')
+    const dir   = romUrl.substring(0, romUrl.lastIndexOf('/') + 1)
+    const isCue = romUrl.endsWith('.cue')
     const filesToCheck: Omit<FileCheck, 'status'>[] = [
       { url: romUrl, label: `ROM (${romUrl.split('/').pop()})`, required: true,
         hint: `Coloca en /public${romUrl}` },
     ]
 
     if (isCue) {
+      log('Leyendo .cue para encontrar el .bin referenciado…')
       const binFilename = await parseCueBinFilename(romUrl)
       if (binFilename) {
         const binUrl = buildFileUrl(dir, binFilename)
+        log(`CUE → bin: "${binFilename}"`)
         filesToCheck.push({
-          url: binUrl,
-          label: `BIN (${binFilename})`,
-          required: true,
-          hint: `El .cue lo referencia como "${binFilename}". Coloca en /public${dir}`,
+          url: binUrl, label: `BIN (${binFilename})`, required: true,
+          hint: `El .cue referencia "${binFilename}". Colócalo en /public${dir}`,
         })
+      } else {
+        log('No se pudo parsear el .cue', 'warn')
       }
     }
 
     if (biosUrl) {
       filesToCheck.push({
-        url: biosUrl, label: `BIOS (${biosUrl.split('/').pop()})`,
-        required: false,
+        url: biosUrl, label: `BIOS (${biosUrl.split('/').pop()})`, required: false,
         hint: `Opcional. Coloca en /public${biosUrl}`,
       })
     }
 
     const results = await checkFiles(filesToCheck)
     setChecks(results)
+    results.forEach(r => {
+      if (r.status === 'ok') log(`✅ ${r.label} — ${r.size ?? 'OK'}`, 'ok')
+      else log(`${r.required ? '❌' : '⚠️'} ${r.label} — ${r.status}${r.hint ? ` (${r.hint})` : ''}`, r.required ? 'err' : 'warn')
+    })
 
-    const requiredMissing = results.filter(r => r.required && r.status !== 'ok')
-    if (requiredMissing.length > 0) {
+    const missing = results.filter(r => r.required && r.status !== 'ok')
+    if (missing.length > 0) {
+      log(`Faltan ${missing.length} archivo(s). Abortando.`, 'err')
       setStatus('preflight-error')
       return
     }
 
-    // ── Configure & inject EmulatorJS — then get out of the way ──────────
+    // ── Step 2: configure EJS globals ────────────────────────────────────
+    log(`Configurando EmulatorJS (core: ${PLATFORM_CORE[platform]})…`)
     const w = window as unknown as Record<string, unknown>
 
-    const binCheck   = results.find(r => r.label.startsWith('BIN'))
-    const actualRom  = binCheck?.status === 'ok' ? binCheck.url : romUrl
-    const biosCheck  = results.find(r => r.url === biosUrl)
+    const binCheck  = results.find(r => r.label.startsWith('BIN'))
+    const actualRom = binCheck?.status === 'ok' ? binCheck.url : romUrl
+    const biosCheck = results.find(r => r.url === biosUrl)
 
     w['EJS_player']      = '#ejs-player'
     w['EJS_core']        = PLATFORM_CORE[platform]
@@ -89,52 +126,69 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
 
     if (biosUrl && biosCheck?.status === 'ok') {
       w['EJS_biosUrl'] = biosUrl
+      log(`BIOS: ${biosUrl}`, 'info')
+    } else if (biosUrl) {
+      log('BIOS no encontrada — usando HLE BIOS (menor compatibilidad)', 'warn')
     }
 
+    // ── Step 3: watch for canvas (EmulatorJS renders into #ejs-player) ───
+    const playerEl = document.getElementById('ejs-player')
+    if (playerEl) {
+      observerRef.current = new MutationObserver(() => {
+        const canvas = playerEl.querySelector('canvas')
+        if (canvas && canvas.width > 0) markRunning()
+      })
+      observerRef.current.observe(playerEl, { childList: true, subtree: true, attributes: true })
+    }
+
+    w['EJS_onGameStart'] = () => markRunning()
     w['EJS_onLoadError'] = (msg: unknown) => {
       const text = typeof msg === 'string' ? msg : 'Error interno de EmulatorJS'
+      log(`❌ EJS_onLoadError: ${text}`, 'err')
       setError(text)
       setStatus('error')
     }
 
-    // Remove any previous loader script
-    if (scriptRef.current && document.body.contains(scriptRef.current)) {
-      document.body.removeChild(scriptRef.current)
-    }
+    // ── Step 4: inject loader — overlay drops so EJS UI becomes visible ──
+    log(`Descargando loader.js desde CDN…`)
+    setStatus('launching')   // <-- overlay clears here; EJS renders freely
 
     const script = document.createElement('script')
     script.src = `${EJS_CDN}loader.js`
     script.onerror = () => {
-      setError('No se pudo descargar loader.js — verifica tu conexión a internet')
+      observerRef.current?.disconnect()
+      const msg = 'No se pudo descargar loader.js — verifica tu conexión'
+      log(`❌ ${msg}`, 'err')
+      setError(msg)
       setStatus('error')
     }
     document.body.appendChild(script)
     scriptRef.current = script
-
-    // Show the EmulatorJS div immediately — it has its own loading UI
-    setStatus('launched')
+    log('loader.js inyectado — EmulatorJS tomará el control del panel', 'ok')
   }
 
   useEffect(() => {
     return () => {
+      observerRef.current?.disconnect()
       if (scriptRef.current && document.body.contains(scriptRef.current))
         document.body.removeChild(scriptRef.current)
     }
   }, [])
 
+  const showOverlay = status === 'idle' || status === 'checking' || status === 'preflight-error' || status === 'error'
   const platformLabel = platform.toUpperCase()
-  const showOverlay   = status === 'idle' || status === 'checking' || status === 'preflight-error' || status === 'error'
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
+      {/* ── Player container ──────────────────────────────────────────── */}
       <div
         className="relative w-full rounded-xl bg-black overflow-hidden"
         style={{ aspectRatio: '4/3', minHeight: 360 }}
       >
-        {/* EmulatorJS renders here — always present in DOM so EJS can find #ejs-player */}
+        {/* EmulatorJS always renders here — no overlay on top during 'launching' / 'running' */}
         <div id="ejs-player" className="absolute inset-0 w-full h-full" />
 
-        {/* Overlay — only shown before launch or on error */}
+        {/* Overlay: only idle / checking / preflight-error / error */}
         {showOverlay && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-black rounded-xl p-6">
 
@@ -152,7 +206,7 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
                   {platform === 'dos' && (
                     <div className="border-t border-slate-700 pt-1.5 mt-1.5">
                       <p className="text-slate-500">El <code>.jsdos</code> debe incluir <code>dosbox.conf</code>:</p>
-                      <pre className="text-slate-400 bg-slate-800 rounded p-1.5 mt-1 leading-5 text-xs select-all">{`[autoexec]\nmount c .\nc:\ncd doom\nDOOM.EXE`}</pre>
+                      <pre className="text-slate-400 bg-slate-800 rounded p-1.5 mt-1 leading-5 select-all">{`[autoexec]\nmount c .\nc:\ncd doom\nDOOM.EXE`}</pre>
                     </div>
                   )}
                 </div>
@@ -193,6 +247,52 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
           </div>
         )}
       </div>
+
+      {/* ── Status bar (below player, never blocking it) ─────────────── */}
+      {status === 'launching' && (
+        <div className="flex items-center gap-2 rounded-lg border border-violet-800/40 bg-violet-950/30 px-3 py-2">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400 shrink-0" />
+          <p className="text-xs text-violet-300">EmulatorJS cargando — descargando core y ROM…</p>
+        </div>
+      )}
+      {status === 'running' && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-3 py-2">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+          <p className="text-xs text-emerald-300">
+            Emulador activo · Clic en pantalla para capturar entrada ·{' '}
+            <kbd className="bg-slate-700 px-1 rounded text-slate-300">F11</kbd> pantalla completa ·{' '}
+            <kbd className="bg-slate-700 px-1 rounded text-slate-300">Esc</kbd> menú
+          </p>
+        </div>
+      )}
+
+      {/* ── Debug log (collapsible, shown once any log exists) ───────── */}
+      {logs.length > 0 && (
+        <div className="rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-wider"
+            onClick={() => setShowLog(v => !v)}
+          >
+            <span>Debug log ({logs.length})</span>
+            {showLog ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          {showLog && (
+            <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto font-mono px-3 pb-3">
+              {logs.map((l, i) => (
+                <p key={i} className={`text-xs leading-5 flex gap-2 ${
+                  l.kind === 'err'  ? 'text-red-400'
+                  : l.kind === 'ok'   ? 'text-emerald-400'
+                  : l.kind === 'warn' ? 'text-amber-400'
+                  : 'text-slate-400'
+                }`}>
+                  <span className="text-slate-600 shrink-0">{l.time}</span>
+                  <span>{l.text}</span>
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
