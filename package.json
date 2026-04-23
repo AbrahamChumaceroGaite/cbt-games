@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "copy-emulatorjs": "node scripts/copy-emulatorjs.mjs",
+    "postinstall": "node scripts/copy-emulatorjs.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -20,6 +22,11 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@emulatorjs/core-dosbox_pure": "^4.2.3",
+    "@emulatorjs/core-mgba": "^4.2.3",
+    "@emulatorjs/core-pcsx_rearmed": "^4.2.3",
+    "@emulatorjs/core-snes9x": "^4.2.3",
+    "@emulatorjs/emulatorjs": "^4.2.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

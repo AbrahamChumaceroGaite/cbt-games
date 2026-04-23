@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored third-party files
     "public/js-dos.js",
+    "public/emulatorjs/**",
   ]),
 ]);
 

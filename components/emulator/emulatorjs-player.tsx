@@ -10,13 +10,14 @@ import { Platform } from '@/lib/domain/entities/game.entity'
 import { checkFiles, parseCueBinFilename, buildFileUrl, type FileCheck } from '@/lib/hooks/use-preflight'
 
 const PLATFORM_CORE: Record<Platform, string> = {
-  dos:  'dosbox',
+  dos:  'dosbox_pure',  // dosbox legacy not in CDN; dosbox_pure needs COOP/COEP (set in next.config)
   ps1:  'pcsx_rearmed',
   snes: 'snes9x',
   gba:  'mgba',
 }
 
-const EJS_CDN = 'https://cdn.emulatorjs.org/stable/data/'
+// Self-hosted via node_modules/@emulatorjs/* — copied to public/emulatorjs/ by scripts/copy-emulatorjs.mjs
+const EJS_DATA_PATH = '/emulatorjs/'
 
 type Status = 'idle' | 'checking' | 'preflight-error' | 'launching' | 'running' | 'error'
 
@@ -121,12 +122,13 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
     // EJS_pathtodata is ALL lowercase — the camelCase version is silently ignored.
     // EJS_startOnLoaded (with "ed") — EJS_startOnLoad does not exist.
     // EJS_onLoadError does not exist in EmulatorJS — removed.
-    w['EJS_player']        = '#ejs-player'
-    w['EJS_core']          = PLATFORM_CORE[platform]
-    w['EJS_gameUrl']       = actualRom
-    w['EJS_pathtodata']    = EJS_CDN   // lowercase "todata" — critical
-    w['EJS_color']         = '#7c3aed'
-    w['EJS_startOnLoaded'] = true      // "Loaded" not "Load"
+    w['EJS_player']          = '#ejs-player'
+    w['EJS_core']            = PLATFORM_CORE[platform]
+    w['EJS_gameUrl']         = actualRom
+    w['EJS_pathtodata']      = EJS_DATA_PATH   // lowercase "todata" — critical
+    w['EJS_color']           = '#7c3aed'
+    w['EJS_startOnLoaded']   = true            // "Loaded" not "Load"
+    w['EJS_language']        = 'en-EN'         // avoid es-BO 404 (not in localization files)
 
     if (biosUrl && biosCheck?.status === 'ok') {
       w['EJS_biosUrl'] = biosUrl
@@ -148,14 +150,14 @@ export function EmulatorJSPlayer({ platform, romUrl, biosUrl, title }: EmulatorJ
     w['EJS_onGameStart'] = () => { log('EJS_onGameStart fired', 'ok'); markRunning() }
 
     // ── Step 4: inject loader — overlay drops so EJS UI becomes visible ──
-    log(`Descargando loader.js desde CDN…`)
+    log(`Cargando EmulatorJS (auto-hospedado)…`)
     setStatus('launching')   // <-- overlay clears here; EJS renders freely
 
     const script = document.createElement('script')
-    script.src = `${EJS_CDN}loader.js`
+    script.src = `${EJS_DATA_PATH}loader.js`
     script.onerror = () => {
       observerRef.current?.disconnect()
-      const msg = 'No se pudo descargar loader.js — verifica tu conexión'
+      const msg = 'No se pudo cargar loader.js — ejecuta npm run copy-emulatorjs'
       log(`❌ ${msg}`, 'err')
       setError(msg)
       setStatus('error')
