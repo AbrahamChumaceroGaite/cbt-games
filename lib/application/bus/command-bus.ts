@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface Command<TResult = void> {
   readonly _type: string
 }

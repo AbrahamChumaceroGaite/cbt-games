@@ -23,7 +23,7 @@ export default function CatalogPage() {
 
   useEffect(() => {
     if (hydrated && !user) router.replace('/')
-  }, [user, router])
+  }, [hydrated, user, router])
 
   const fetchGames = useCallback(async () => {
     setLoading(true)
@@ -38,6 +38,7 @@ export default function CatalogPage() {
   }, [search, platform])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchGames()
   }, [fetchGames])
 

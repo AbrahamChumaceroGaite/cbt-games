@@ -145,7 +145,7 @@ export function DosEmulator({ romUrl, title }: DosEmulatorProps) {
                   <p className="font-semibold text-slate-300">Bundle requerido</p>
                   <code className="text-violet-400 block">/public{romUrl}</code>
                   <p className="text-slate-500 border-t border-slate-700 pt-2">
-                    Si DOSBox muestra "Illegal command: doom", los archivos están en subcarpeta.
+                    Si DOSBox muestra &quot;Illegal command: doom&quot;, los archivos están en subcarpeta.
                     El <code className="text-slate-400">dosbox.conf</code> dentro del .jsdos debe ser:
                   </p>
                   <pre className="text-slate-400 bg-slate-800 rounded p-2 leading-5 select-all">{`[autoexec]\nmount c .\nc:\ncd doom\nDOOM.EXE`}</pre>

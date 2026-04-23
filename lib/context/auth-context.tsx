@@ -17,20 +17,26 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function readSession(): UserEntity | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    return raw ? (JSON.parse(raw) as UserEntity) : null
+  } catch {
+    return null
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]         = useState<UserEntity | null>(null)
+  // Lazy initializer reads localStorage synchronously on first client render,
+  // avoiding setState inside a useEffect (react-hooks/set-state-in-effect).
+  const [user, setUser]         = useState<UserEntity | null>(readSession)
   const [hydrated, setHydrated] = useState(false)
 
-  // Restore persisted session on mount
+  // Only sets hydrated after mount so guards know SSR is done.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY)
-      if (raw) setUser(JSON.parse(raw) as UserEntity)
-    } catch {
-      // corrupted storage — ignore
-    } finally {
-      setHydrated(true)
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHydrated(true)
   }, [])
 
   async function login(email: string, password: string) {
